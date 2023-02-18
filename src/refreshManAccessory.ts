@@ -20,7 +20,7 @@ export class RefreshManAccessory {
 
     this.service = this.accessory.getService(this.platform.Service.Switch) || this.accessory.addService(this.platform.Service.Switch);
 
-    this.service.setCharacteristic(this.platform.Characteristic.Name, 'Refresh');
+    // this.service.setCharacteristic(this.platform.Characteristic.Name, 'Refresh');
 
     this.service.getCharacteristic(this.platform.Characteristic.On)
       .onGet(this.getOn.bind(this))
@@ -40,6 +40,7 @@ export class RefreshManAccessory {
 
     if (isOn) {
       //
+      this.service.updateCharacteristic(this.platform.Characteristic.Name, 'Refreshing');
       this.platform.doRefresh();
     } else {
       // ignore

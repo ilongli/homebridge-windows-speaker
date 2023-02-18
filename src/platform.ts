@@ -70,6 +70,8 @@ export class ExampleHomebridgePlatform implements DynamicPlatformPlugin {
       // create the refresh-man
       if (this.config.refreshButton) {
         this.createRefreshMan();
+      } else {
+        this.removeRefreshManIfNeed();
       }
 
       // refresh devices
@@ -78,24 +80,25 @@ export class ExampleHomebridgePlatform implements DynamicPlatformPlugin {
     });
   }
 
+  removeRefreshManIfNeed() {
+    if (this.cacheRefreshMan) {
+      this.log.debug('unregister the cache refresh-man');
+      this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [this.cacheRefreshMan]);
+    }
+  }
+
   /**
    * This function is invoked when homebridge restores cached accessories from disk at startup.
    * It should be used to setup event handlers for characteristics and update respective values.
    */
   configureAccessory(accessory: PlatformAccessory) {
-    this.log.info(
-      'Loading accessory from cache:',
-      accessory.displayName,
-      accessory.context.device['Item ID']);
-
     if (accessory.context.isRefreshMan) {
-      if (this.config.refreshButton) {
-        this.cacheRefreshMan = accessory;
-      } else {
-        this.log.debug('unregister the cache refresh-man');
-        this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
-      }
+      this.cacheRefreshMan = accessory;
     } else {
+      this.log.info(
+        'Loading accessory from cache:',
+        accessory.displayName,
+        accessory.context.device['Item ID']);
       this.cacheAccessories.push(accessory);
     }
   }
