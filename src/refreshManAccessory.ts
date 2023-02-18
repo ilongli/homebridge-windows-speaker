@@ -57,7 +57,7 @@ export class RefreshManAccessory {
 
   async getStateStr(): Promise<CharacteristicValue> {
     const isRefreshing = this.platform.isRefreshing;
-    const stateStr = isRefreshing ? 'Refresh' : 'Refreshing';
+    const stateStr = isRefreshing ? 'Refreshing' : 'Refresh';
     this.platform.log.debug('[Refresh-Man]Get Name ->', stateStr);
     return stateStr;
   }
