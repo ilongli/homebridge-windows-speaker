@@ -1,5 +1,5 @@
 {
-  "pluginAlias": "ExampleHomebridgePlugin",
+  "pluginAlias": "WindowsSpeaker",
   "pluginType": "platform",
   "singular": true,
   "schema": {
@@ -9,7 +9,25 @@
         "title": "Name",
         "type": "string",
         "required": true,
-        "default": "Example Dynamic Platform"
+        "default": "homebridge-windows-speaker"
+      },
+      "refreshButton": {
+        "title": "Show refresh button",
+        "type": "boolean",
+        "required": false,
+        "default": true
+      },
+      "autoRefresh": {
+        "title": "Auto refresh",
+        "type": "boolean",
+        "required": false,
+        "default": false
+      },
+      "autoRefreshInterval": {
+        "title": "Auto refresh interval (seconds)",
+        "type": "number",
+        "required": false,
+        "default": 10
       }
     }
   }

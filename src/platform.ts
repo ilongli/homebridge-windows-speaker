@@ -2,6 +2,12 @@ import { API, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, 
 
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
 import { ExamplePlatformAccessory } from './platformAccessory';
+import { RefreshManAccessory } from './refreshManAccessory';
+
+import { saveSoundItemFile } from './cmd-utils';
+
+import fs from 'node:fs';
+import path from 'node:path';
 
 /**
  * HomebridgePlatform
@@ -13,23 +19,62 @@ export class ExampleHomebridgePlatform implements DynamicPlatformPlugin {
   public readonly Characteristic: typeof Characteristic = this.api.hap.Characteristic;
 
   // this is used to track restored cached accessories
-  public readonly accessories: PlatformAccessory[] = [];
+  public cacheAccessories: PlatformAccessory[] = [];
+
+  // 目前正在使用的accessory
+  public accessories: PlatformAccessory[] = [];
+
+  public defaultSpeakerUUID = '';
+
+  public soundItemsFilePath = '';
+
+  public isReady = false;
+
+  public isRefreshing = false;
+
+  public cacheRefreshMan!: PlatformAccessory;
+  public refreshMan!: PlatformAccessory;
 
   constructor(
     public readonly log: Logger,
     public readonly config: PlatformConfig,
     public readonly api: API,
   ) {
+
+    /**
+     * init the soundItemsFilePath
+     */
+    const configDir = this.api.user.storagePath() + '/windows-speaker';
+    if (!fs.existsSync(configDir)) {
+      fs.mkdirSync(configDir);
+    }
+    this.log.debug(`持久化音频设备列表文件路径： ${configDir}`);
+
+    this.soundItemsFilePath = path.join(configDir, 'sound-items.json');
+
+
+    /**
+     * init the auto refresh
+     */
+    if (config.autoRefresh) {
+      this.log.info(`start the auto refresh per ${config.autoRefreshInterval} seconds`);
+      setInterval(this.doRefresh.bind(this), config.autoRefreshInterval * 1000);
+    }
+
+
     this.log.debug('Finished initializing platform:', this.config.name);
 
-    // When this event is fired it means Homebridge has restored all cached accessories from disk.
-    // Dynamic Platform plugins should only register new accessories after this event was fired,
-    // in order to ensure they weren't added to homebridge already. This event can also be used
-    // to start discovery of new accessories.
     this.api.on('didFinishLaunching', () => {
       log.debug('Executed didFinishLaunching callback');
-      // run the method to discover / register your devices as accessories
-      this.discoverDevices();
+
+      // create the refresh-man
+      if (this.config.refreshButton) {
+        this.createRefreshMan();
+      }
+
+      // refresh devices
+      this.isReady = true;
+      this.doRefresh();
     });
   }
 
@@ -38,78 +83,215 @@ export class ExampleHomebridgePlatform implements DynamicPlatformPlugin {
    * It should be used to setup event handlers for characteristics and update respective values.
    */
   configureAccessory(accessory: PlatformAccessory) {
-    this.log.info('Loading accessory from cache:', accessory.displayName);
+    this.log.info(
+      'Loading accessory from cache:',
+      accessory.displayName,
+      accessory.context.device['Item ID']);
 
-    // add the restored accessory to the accessories cache so we can track if it has already been registered
-    this.accessories.push(accessory);
+    if (accessory.context.isRefreshMan) {
+      if (this.config.refreshButton) {
+        this.cacheRefreshMan = accessory;
+      } else {
+        this.log.debug('unregister the cache refresh-man');
+        this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+      }
+    } else {
+      this.cacheAccessories.push(accessory);
+    }
   }
 
-  /**
-   * This is an example method showing how to register discovered accessories.
-   * Accessories must only be registered once, previously created accessories
-   * must not be registered again to prevent "duplicate UUID" errors.
-   */
+  doRefresh() {
+
+    if (this.isRefreshing || !this.isReady) {
+      return;
+    }
+
+    this.isRefreshing = true;
+
+    try {
+      this.discoverDevices();
+    } finally {
+      this.isRefreshing = false;
+      this.updateRefreshManState();
+    }
+
+  }
+
   discoverDevices() {
 
-    // EXAMPLE ONLY
-    // A real plugin you would discover accessories from the local network, cloud services
-    // or a user-defined array in the platform config.
-    const exampleDevices = [
-      {
-        exampleUniqueId: 'ABCD',
-        exampleDisplayName: 'Bedroom',
-      },
-      {
-        exampleUniqueId: 'EFGH',
-        exampleDisplayName: 'Kitchen',
-      },
-    ];
+    // get all speakers
+    const speakers = this.getAllSpeakers();
+    const aliveSpeakerMap = new Map();
 
-    // loop over the discovered devices and register each one if it has not already been registered
-    for (const device of exampleDevices) {
+    for (const device of speakers) {
 
-      // generate a unique id for the accessory this should be generated from
-      // something globally unique, but constant, for example, the device serial
-      // number or MAC address
-      const uuid = this.api.hap.uuid.generate(device.exampleUniqueId);
+      const uuid = this.api.hap.uuid.generate(device['Item ID']);
 
-      // see if an accessory with the same uuid has already been registered and restored from
-      // the cached devices we stored in the `configureAccessory` method above
-      const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
+      // 检查是否当前默认的speaker
+      // check whether is the default speaker
+      if (device['Default'] !== '') {
+        this.defaultSpeakerUUID = uuid;
+      }
+
+      // 正在使用的accessories已经存在该speaker了，跳过
+      const workingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
+      if (workingAccessory) {
+        // 更新device信息
+        workingAccessory.context.device = device;
+        this.api.updatePlatformAccessories([workingAccessory]);
+        aliveSpeakerMap.set(workingAccessory.UUID, true);
+        continue;
+      }
+
+      const existingAccessory = this.cacheAccessories.find(accessory => accessory.UUID === uuid);
 
       if (existingAccessory) {
         // the accessory already exists
-        this.log.info('Restoring existing accessory from cache:', existingAccessory.displayName);
+        this.log.info(
+          'Restoring existing accessory from cache:',
+          existingAccessory.displayName,
+          existingAccessory.context.device['Item ID']);
 
-        // if you need to update the accessory.context then you should run `api.updatePlatformAccessories`. eg.:
-        // existingAccessory.context.device = device;
-        // this.api.updatePlatformAccessories([existingAccessory]);
+        // 更新device信息
+        existingAccessory.context.device = device;
+        this.api.updatePlatformAccessories([existingAccessory]);
 
-        // create the accessory handler for the restored accessory
-        // this is imported from `platformAccessory.ts`
         new ExamplePlatformAccessory(this, existingAccessory);
 
-        // it is possible to remove platform accessories at any time using `api.unregisterPlatformAccessories`, eg.:
-        // remove platform accessories when no longer present
-        // this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [existingAccessory]);
-        // this.log.info('Removing existing accessory from cache:', existingAccessory.displayName);
+        // 缓存设备处理完毕，从this.accessories中删除
+        this.cacheAccessories.splice(this.cacheAccessories.indexOf(existingAccessory), 1);
+
+        this.accessories.push(existingAccessory);
       } else {
         // the accessory does not yet exist, so we need to create it
-        this.log.info('Adding new accessory:', device.exampleDisplayName);
+        this.log.info('Adding new accessory:', device['Name']);
 
         // create a new accessory
-        const accessory = new this.api.platformAccessory(device.exampleDisplayName, uuid);
+        const accessory = new this.api.platformAccessory(device['Name'], uuid);
 
-        // store a copy of the device object in the `accessory.context`
-        // the `context` property can be used to store any data about the accessory you may need
         accessory.context.device = device;
 
-        // create the accessory handler for the newly create accessory
-        // this is imported from `platformAccessory.ts`
         new ExamplePlatformAccessory(this, accessory);
 
-        // link the accessory to your platform
         this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+
+        this.accessories.push(accessory);
+      }
+
+      aliveSpeakerMap.set(uuid, true);
+
+    }
+
+    // 删除掉没有匹配上的cacheAccessory
+    if (this.cacheAccessories.length > 0) {
+      this.log.debug('unregister accessories:', this.cacheAccessories.map(ca => ca.displayName).join(','));
+      this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, this.cacheAccessories);
+      this.cacheAccessories = [];
+    }
+
+    this.log.debug('aliveSpeakerMap:', aliveSpeakerMap);
+    // 删除掉已经不存在的speaker
+    for (const device of this.accessories) {
+      if (!aliveSpeakerMap.has(device.UUID)) {
+        this.log.debug('unregister accessory:', device.displayName);
+        this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [device]);
+        this.accessories.splice(this.accessories.indexOf(device), 1);
+      }
+    }
+
+  }
+
+
+  /**
+   * get all speakers throught SoundVolumeView.exe
+   * @see https://www.nirsoft.net/utils/sound_volume_view.html
+   * @returns Array
+   */
+  getAllSpeakers() {
+    try {
+      saveSoundItemFile(this.soundItemsFilePath);
+    } catch (error) {
+      this.log.error('保存sound-item.json失败：', (<Buffer> error).toString());
+      return [];
+    }
+
+    // 从sound-item.json中读取所有音频设备列表
+    // get audio device list from sound-item.json
+    let fileContent = fs.readFileSync(this.soundItemsFilePath, 'utf8');
+    fileContent = fileContent.replace(/^\uFEFF/, '');
+    const soundItems = JSON.parse(fileContent) || [];
+
+    // 筛选出所有speakers
+    // filter all speakers
+    const speakers = soundItems.filter((soundItem) => {
+      return soundItem.Type === 'Device' && soundItem.Direction === 'Render';
+    });
+
+    this.log.debug('speakers:', speakers);
+
+    return speakers;
+  }
+
+
+  updateDevicesState(accessory: PlatformAccessory) {
+
+    const currentUUID = accessory.UUID;
+
+    this.log.debug('updateDevicesState:', currentUUID);
+
+    if (this.defaultSpeakerUUID === currentUUID) {
+      return;
+    }
+
+    this.defaultSpeakerUUID = currentUUID;
+    // 遍历所有speaker，更新其状态
+    // iterate all speakers, update the state
+    for (const speaker of this.accessories) {
+      if (speaker.UUID !== currentUUID) {
+        const service = speaker.getService(this.Service.Lightbulb);
+        if (service) {
+          service.updateCharacteristic(this.Characteristic.On, false);
+        }
+      }
+    }
+  }
+
+
+  createRefreshMan() {
+    const cacheRefreshMan = this.cacheRefreshMan;
+    if (cacheRefreshMan) {
+
+      this.log.info('Restoring RefreshMan from cache');
+
+      new RefreshManAccessory(this, cacheRefreshMan);
+
+      this.refreshMan = cacheRefreshMan;
+    } else {
+
+      const uuid = this.api.hap.uuid.generate('refresh-man');
+
+      this.log.info('Create RefreshMan');
+
+      // create a new accessory
+      const accessory = new this.api.platformAccessory('Refresh-Man', uuid);
+
+      accessory.context.isRefreshMan = true;
+
+      new RefreshManAccessory(this, accessory);
+
+      this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+
+      this.refreshMan = accessory;
+    }
+
+  }
+
+  updateRefreshManState() {
+    if (this.refreshMan) {
+      const service = this.refreshMan.getService(this.Service.Switch);
+      if (service) {
+        service.updateCharacteristic(this.Characteristic.On, false);
+        service.updateCharacteristic(this.Characteristic.Name, 'Refresh');
       }
     }
   }

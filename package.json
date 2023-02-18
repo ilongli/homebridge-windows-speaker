@@ -1,16 +1,16 @@
 {
   "private": true,
-  "displayName": "Plugin Name",
+  "displayName": "WindowsSpeaker",
   "name": "homebridge-plugin-name",
   "version": "1.0.0",
-  "description": "A short description about what your plugin does.",
+  "description": "a homebridge plugin for windows-os to control the speakers, including change the volume and switch the default one.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/USERNAME/GITHUB_PROJECT_NAME.git"
+    "url": "https://github.com/ilongli/homebridge-windows-speaker"
   },
   "bugs": {
-    "url": "https://github.com/USERNAME/GITHUB_PROJECT_NAME/issues"
+    "url": "https://github.com/ilongli/homebridge-windows-speaker/issues"
   },
   "engines": {
     "node": ">=14.18.1",
