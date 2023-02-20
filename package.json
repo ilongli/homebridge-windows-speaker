@@ -1,5 +1,5 @@
 {
-  "private": true,
+  "private": false,
   "displayName": "WindowsSpeaker",
   "name": "homebridge-windows-speaker",
   "version": "1.0.0",

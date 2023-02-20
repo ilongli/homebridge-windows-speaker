@@ -11,7 +11,7 @@
 
 # Homebridge Windows Speaker
 一个简单的全自动Homebridge插件，仅**Windows**系统使用，自动扫描电脑的音频输出设备，将每个音频输出注册为一个“**灯**”，可点击切换默认的音频输出设备、控制每个音频输出设备的音量。
-
+![](https://raw.githubusercontent.com/ilongli/images/master/hb-showcase.gif)
 
 ## 环境需求
 - 理论上兼容win7以上的系统。经测试，Windows家庭版21H2和Windows Server 2012R2正常工作。

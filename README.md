@@ -11,7 +11,7 @@
 
 # Homebridge Windows Speaker
 A simple fully automatic Homebridge plugin, only for **Windows**, automatically scans the computer's audio output devices, registers each audio output as a“**LightBulb**”, switch the default audio output device, and controls the volume of each audio output device。
-
+![](https://raw.githubusercontent.com/ilongli/images/master/hb-showcase.gif)
 
 ## Requirement
 - Should be Windows 7 or above. In my tests, Windows Home 21H2 and Windows Server 2012R2 work fine.
