@@ -156,12 +156,13 @@ export class ExampleHomebridgePlatform implements DynamicPlatformPlugin {
           existingAccessory.context.device['Item ID']);
 
         // 更新device信息
+        // update device info
         existingAccessory.context.device = device;
         this.api.updatePlatformAccessories([existingAccessory]);
 
         new ExamplePlatformAccessory(this, existingAccessory);
 
-        // 缓存设备处理完毕，从this.accessories中删除
+        // 缓存设备处理完毕，从this.cacheAccessories中移除
         this.cacheAccessories.splice(this.cacheAccessories.indexOf(existingAccessory), 1);
 
         this.accessories.push(existingAccessory);
@@ -186,6 +187,7 @@ export class ExampleHomebridgePlatform implements DynamicPlatformPlugin {
     }
 
     // 删除掉没有匹配上的cacheAccessory
+    // delete the cacheAccessory that does not match
     if (this.cacheAccessories.length > 0) {
       this.log.debug('unregister accessories:', this.cacheAccessories.map(ca => ca.displayName).join(','));
       this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, this.cacheAccessories);
@@ -194,6 +196,7 @@ export class ExampleHomebridgePlatform implements DynamicPlatformPlugin {
 
     this.log.debug('aliveSpeakerMap:', aliveSpeakerMap);
     // 删除掉已经不存在的speaker
+    // delete the speakers that no longer exist
     for (const device of this.accessories) {
       if (!aliveSpeakerMap.has(device.UUID)) {
         this.log.debug('unregister accessory:', device.displayName);
@@ -276,7 +279,7 @@ export class ExampleHomebridgePlatform implements DynamicPlatformPlugin {
       this.log.info('Create RefreshMan');
 
       // create a new accessory
-      const accessory = new this.api.platformAccessory('Refresh-Man', uuid);
+      const accessory = new this.api.platformAccessory('Refresh', uuid);
 
       accessory.context.isRefreshMan = true;
 
@@ -293,8 +296,10 @@ export class ExampleHomebridgePlatform implements DynamicPlatformPlugin {
     if (this.refreshMan) {
       const service = this.refreshMan.getService(this.Service.Switch);
       if (service) {
-        service.updateCharacteristic(this.Characteristic.On, false);
-        service.updateCharacteristic(this.Characteristic.Name, 'Refresh');
+        setTimeout(() => {
+          service.updateCharacteristic(this.Characteristic.On, false);
+          service.updateCharacteristic(this.Characteristic.Name, 'Refresh');
+        }, 2000);
       }
     }
   }

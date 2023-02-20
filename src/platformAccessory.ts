@@ -58,7 +58,8 @@ export class ExamplePlatformAccessory {
       unMuteByItemId(this.itemId);
       this.platform.updateDevicesState(this.accessory);
     } else {
-      // TODO，如果是off，相当于将其静音
+      // 如果是off，相当于将其静音
+      // off equals to mute
       muteByItemId(this.itemId);
     }
 
