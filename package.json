@@ -1,9 +1,9 @@
 {
   "private": true,
   "displayName": "WindowsSpeaker",
-  "name": "homebridge-plugin-name",
+  "name": "homebridge-windows-speaker",
   "version": "1.0.0",
-  "description": "a homebridge plugin for windows-os to control the speakers, including change the volume and switch the default one.",
+  "description": "A homebridge plugin for windows-os to control the speakers, including change the volume and switch the default one.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -24,7 +24,9 @@
     "prepublishOnly": "npm run lint && npm run build"
   },
   "keywords": [
-    "homebridge-plugin"
+    "homebridge-plugin",
+    "speaker",
+    "windows"
   ],
   "dependencies": {},
   "devDependencies": {

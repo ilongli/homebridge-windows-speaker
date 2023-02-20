@@ -15,7 +15,7 @@ A simple fully automatic Homebridge plugin, only for **Windows**, automatically 
 
 ## Requirement
 - Should be Windows 7 or above. In my tests, Windows Home 21H2 and Windows Server 2012R2 work fine.
-- The plugin is actually working by NirSoft[SoundVolumeView](https://www.nirsoft.net/utils/sound_volume_view.html) and [SoundVolumeCommandLine](https://www.nirsoft.net/utils/sound_volume_command_line.html) to control the audio deivec. Therefore, if you find that your system is not working properly, you can try to see if these two tools are working properly.
+- The plugin is actually working by NirSoft [SoundVolumeView](https://www.nirsoft.net/utils/sound_volume_view.html) and [SoundVolumeCommandLine](https://www.nirsoft.net/utils/sound_volume_command_line.html) to control the audio deivec. Therefore, if you find that your system is not working properly, you can try to see if these two tools are working properly.
 
 ## Install
 Install the [Homebridge](https://github.com/homebridge/homebridge/wiki/Install-Homebridge-on-Windows-10)
